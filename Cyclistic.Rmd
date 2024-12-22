@@ -1,0 +1,343 @@
+---
+title: "Cyclistic"
+author: "rabih"
+date: "2024-12-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Introdution
+ I have chosen the Cyclistic bike share data to work on as data analytics capstone project. For the case study, I will perform real-world tasks of a junior data analyst for the marketing team at Cyclistic, a fictional bike-share company in Chicago.
+To answer key business questions, I will follow the six steps of the data analysis process : Ask, Prepare, Process, Analyze, Share and Act.
+
+
+### The scenario
+
+The director of marketing of Cyclistic, Lily Moreno, believes that the company’s future growth depends on maximizing the number of annual memberships. Hence, the marketing analyst team wants to understand how casual riders and annual members use Cyclistic bikes differently. From these insights, the analytics team could be able to design a new marketing strategy to convert casual riders into annual members. 
+
+Three questions will guide the future marketing campaign:
+
+1.How do annual members and casual riders use Cyclistic bikes differently?
+
+2.Why would casual riders buy Cyclistic annual memberships?
+
+3.How can Cyclistic use digital media to influence casual riders to become members?
+
+I have been assigned by Moreno the first question. 
+
+
+### The Ask phase
+
+* A statement of the business task: 
+
+Cyclistic has concluded that annual members are much more profitable than casual riders. So, we want to design a marketing strategies and a campaign that helps us converting casual riders into annual members. 
+
+* My key stakeholders are: 
+
+1-Lily Moreno: The director of marketing and my manager has initiated this strategy. The first stakeholder to deliver to. 
+
+2-The executive team: the executive team must approve our recommendations, so so they must be backed up with compelling data insights and professional data visualizations.
+
+
+### The Prepare phase
+
+Data Source: 
+Past 12 month of original bike share data set from 01/01/2019 to 08/03/2020 was extracted as 2 zipped .csv . The data is made available and licensed by Motivate International Inc under this [license](https://ride.divvybikes.com/data-license-agreement) but i will use only 2 files because the limitation of posit cloud rstudio.
+
+###Data Organization & Description:
+
+File naming convention: YYYY_Q
+
+File Type:  csv  format 
+
+File Content: Each csv file consist of 13 columns which contain information related to ride id, rider type, ride start and end time, start .and end location  etc.
+
+
+Data credibility: 
+
+The data set is reliable, the data is complete and accurate for the chosen time window.
+
+The data is original, it is a first party information.
+
+The data is comprehensive, the data set contains all information needed to answer the question.
+
+The data is current, rider data of the last 12 months was used.
+
+The data is cited and vetted by Chicago department of transportation.
+
+
+Data Security: Riders’ personal identifiable information is hidden through tokenization.
+
+Original files are backed up in a separate folder.
+
+
+Data Limitations: As riders’ personal identifiable information is hidden, thus will not be able to connect pass purchases to credit cards numbers to determine if casual riders live in the Cyclistic service area or if they have purchased multiple single passes.
+
+### The Process Phase
+
+I used R for data verification and cleaning: Reasons:
+The 12 data sets combined will contain a hight number of rows of data. Excel worksheet limitation is 1,048,576 rows. Moreover, some csv files could not uploaded to BigQuery for file size problems. Thus, R is used to perform all tasks from organizing, cleaning analyzing and visualizing data.
+
+
+### The Analyze Phase:
+
+### Setting work place
+```{r}
+setwd("/cloud/project/Cyclistic")
+getwd()
+
+```
+
+#### Setting up the environment
+```{r}
+install.packages("tidyverse")
+install.packages("janitor")
+install.packages("skimr")
+```
+Here, I use several libraries that help reading, cleaning, organizing and analyzing the data.
+
+```{r libraries, echo=TRUE, eval=TRUE}
+library(tidyverse)
+library(janitor)
+library(skimr)
+library(here)
+library(readxl)
+library(data.table)
+library(readr)
+library(lubridate)
+library(magrittr)
+```
+
+#### Importing data 
+Cyclist data from Divvy_trips_2019_Q1 and Divvy_trips_2020_Q1 is imported and read as csv. files. 
+```{r csv data collection, echo=TRUE, eval=FALSE}
+q1_2019 <- read_csv("Divvy_Trips_2019_Q1.csv")
+q1_2020 <- read_csv("Divvy_Trips_2020_Q1.csv")
+```
+##Comparing column names each of the files.
+While the names don't have to be in the same order, they DO need to match perfectly before they are  joined  into one file.
+
+```{r colname inspection, echo=TRUE, eval=TRUE}
+colnames(q1_2019)
+colnames(q1_2020)
+```
+### Renamin columns 
+to make them consistent with q1_2020 (as this will be the supposed going-forward table design for Divvy)
+```{r}
+(q1_2019 <- rename(q1_2019
+,ride_id = trip_id
+,rideable_type = bikeid
+,started_at = start_time
+,ended_at = end_time
+,start_station_name = from_station_name
+,start_station_id = from_station_id
+,end_station_name = to_station_name
+,end_station_id = to_station_id
+,member_casual = usertype
+))
+```
+
+### Inspecting the dataframes and looking for incongruencies
+```{r}
+str(q1_2019)
+str(q1_2020)
+```
+### Converting ride_id and rideable_type to character so that they can stack correctly
+```{r}
+q1_2019 <- mutate(q1_2019, ride_id = as.character(ride_id)
+,rideable_type = as.character(rideable_type))
+```
+
+### Stacking individual quarter's data frames into one big data frame
+```{r stacking the datasets , echo=TRUE, eval=TRUE}
+all_trips <- bind_rows(q1_2019, q1_2020)
+```
+
+### Removing lat, long, birthyear, and gender fields as this data was dropped beginning in 2020
+```{r}
+all_trips <- all_trips %>%
+select(-c(start_lat, start_lng, end_lat, end_lng, birthyear, gender, "tripduration"))
+```
+
+####  Cleaning up and organizing data to prepare for analysis
+
+Inspect the new table that has been created.
+
+```{r all_trips inspection, echo=TRUE, eval=TRUE}
+colnames(all_trips) #List of column names
+nrow(all_trips) #How many rows are in data frame?
+dim(all_trips) #Dimensions of the data frame?
+head(all_trips) #See the first 6 rows of data frame. Also tail(all_trips)
+str(all_trips) #See list of columns and data types (numeric, character, etc)
+summary(all_trips) #Statistical summary of data. Mainly for numerics
+```
+### fwe problems fixing
+```{r}
+all_trips <- all_trips %>%
+mutate(member_casual = recode(member_casual
+,"Subscriber" = "member"
+,"Customer" = "casual")) #reassinig to the desired values. 
+```
+
+###assingement check
+```{r}
+table(all_trips$member_casual) #checking the assingment.
+```
+Then,  columns that list the date, month, day, day_of_week and year of each ride are added. days of the week are assigned the numbers 1:Monday, 2:Tuesday, etc.
+This will allow the aggregation of the data by each day, month or day_of_week.
+
+```{r separting ride date and extracting date data, echo=TRUE, eval=TRUE}
+all_trips$date <- as.Date(all_trips$started_at) #The default format is yyyy-mm-dd
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+```
+
+
+Adding a "ride_length" calculation to all_trips in seconds.
+
+```{r calulate the ride_length in secs, echo=TRUE, eval=TRUE}
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+
+```
+
+
+Inspecting the structure of the newly added columns.
+
+```{r data inspection, echo=TRUE, eval=TRUE}
+str(all_trips)
+```
+
+
+Converting c(ride_length, day and month) to numeric so that calculation can be executed.
+
+```{r converting variables to numeric, echo=TRUE, eval=TRUE}
+is.factor(all_trips$ride_length)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+```
+
+###removing bad data 
+After converting and inspecting data, it was noticed that col:ride_length has some negative values, probably because start_time and end_time were swapped for these rides, or the system simply registered and recorded the rides incorrectly. So, negative-seconds rides must be excluded.
+
+```{r droppig rows, echo=TRUE, eval=TRUE}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+
+#### First analysis step: descriptive analysis on ride length
+First of all, a descriptive analysis on ride length insecond is performed.
+
+```{r data statistical summary, echo=TRUE, eval=TRUE, error=TRUE}
+summary(all_trips_v2$ride_length) 
+```
+
+#### Comparing members and casual users
+
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual, FUN = min)
+```
+
+### calculating the average ride time by each day for members vs casual users
+
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$day_of_week, FUN = mean)
+```
+
+### We find that the days of the week are out of order. Let's fix that.
+
+```{r}
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday",
+"Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+```
+
+### calculating the average ride time by each day for members vs casual users
+
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$day_of_week, FUN = mean)
+```
+
+### analyzing ridership data by type and weekday
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = lubridate::wday(started_at, label = TRUE)) %>%  #creates weekday field using wday()
+  group_by(member_casual, weekday) %>%                  #groups by usertype and weekday
+  summarise(number_of_rides = n()					#calculates the number of rides and average duration 
+            ,average_duration = mean(ride_length))%>%
+  # calculates the average duration
+  arrange(member_casual, weekday)	# sorts
+```
+###Visualysing the number of rides by rider type
+Next, a plot of the number_of_rides for every day of the week for members and casual riders is shown. 
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday =lubridate::wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+
+```
+Surprisingly, and in contrast to the former plot, members begin more rides and thus have higher number of rides on every day of the week except for Saturday and Sunday.
+on the other way the casuals have the highest numbers of ride in Sunday and Saturday.
+
+### Let's create a visualization for average duration
+Next, a plot of the ride_length or average_duration for every day of the week for members and casual riders is shown. 
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = lubridate::wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+The plot demonstrates that casual riders rent bikes for longer durations, especially on Thursday, Sunday,Friday and on Saturday.
+ Members have an increase of rides duration on Sunday and Saturday. 
+ 
+#### Second analysis step: average ride length depending on rider type and number of each rider type
+So, the result shows that casual riders tend to rent bikes for longer mean durations than members, in accordance with plot 2. Members probably use bikes to commute, whereas casual riders maybe, among other things, exercising, visiting the city or attending special events.
+
+```{r}
+counts <- aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+write.csv(counts, file = 'avg_ride_length.csv')
+
+```
+
+### The Share phase 
+
+#### Conclusions/Summary of insights 
+
+Members and casual riders differ in how long they use the bikes, how often they use the bikes, and on which days of the week does every group peak:
+
+* Casual rides peak during weekends (plot2). There is a high probability they are tourists visiting and sightseeing the city, or that they are ordinary Chicago residents who are riding bike in their leisure time during the weekend. The longer average ride time for casual rider (plot2), also peaking at the Thursday maybe to prepare themselves for weekend.
+
+* Ride length for members are relatively shorter compared to casual riders. This could clarified as such, that most members use the bikes to commute on workdays. This clarification would also explain the short riding durations of members. They ride from point A to B, namely roughly always the same ride lengths and the same distance.
+
+
+
+#### Recommendations
+
+*Give discounts for longer rides when you have a membership
+Longer rides can get some type of rewards program when they become members
+
+* As casual rider usage reach its highest point on the Thursday and weekends , the marketing campaign can include days from Thursday to Sunday membership at a sensible price. This could attract casual riders to convert to members.
+
+* The campaign could include ride-length-based tariff plan (maybe only on weekends): Bike more, pay less ! 
+This provides more incentive for the member rides to cycle longer distances. 
+
+* Alternatively, longer rides can be rewarded with benefits such as discount vouchers. 
